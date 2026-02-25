@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Snyk Vulnerability Dashboard</title>
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+
+  <!-- ===== Header ===== -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="brand">
+        <svg class="brand-logo" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M24 4L6 14v20l18 10 18-10V14L24 4z" fill="#A78BFA" opacity="0.25"/>
+          <path d="M24 4L6 14v20l18 10 18-10V14L24 4z" stroke="#A78BFA" stroke-width="2" fill="none"/>
+          <circle cx="24" cy="24" r="6" fill="#A78BFA"/>
+        </svg>
+        <span class="brand-name">snyk</span>
+        <div class="brand-divider"></div>
+        <h1 class="brand-title">Vulnerability Dashboard</h1>
+      </div>
+      <div class="header-meta" id="data-summary">
+        <span class="meta-loading">Loading data…</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== Filter Bar ===== -->
+  <div class="filter-bar" id="filter-bar">
+    <div class="filter-group">
+      <span class="filter-label">Organization</span>
+      <div class="filter-chips" id="filter-org"></div>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">Scan Type</span>
+      <div class="filter-chips" id="filter-scan"></div>
+    </div>
+    <button class="btn-reset" id="reset-filters" title="Reset all filters">↺ Reset</button>
+  </div>
+
+  <!-- ===== KPI Row ===== -->
+  <div class="kpi-row">
+    <div class="kpi-card" id="kpi-card-total">
+      <div class="kpi-content">
+        <div class="kpi-value" id="kpi-total">—</div>
+        <div class="kpi-label">Total Issues</div>
+      </div>
+      <div class="kpi-spark" style="--accent:#7E3AF2"></div>
+    </div>
+    <div class="kpi-card kpi-critical" id="kpi-card-critical">
+      <div class="kpi-content">
+        <div class="kpi-value" id="kpi-critical">—</div>
+        <div class="kpi-label">Critical Open</div>
+      </div>
+      <div class="kpi-spark" style="--accent:#AB1A1A"></div>
+    </div>
+    <div class="kpi-card kpi-high" id="kpi-card-high">
+      <div class="kpi-content">
+        <div class="kpi-value" id="kpi-high">—</div>
+        <div class="kpi-label">High Open</div>
+      </div>
+      <div class="kpi-spark" style="--accent:#CE5019"></div>
+    </div>
+    <div class="kpi-card kpi-fixed" id="kpi-card-fixed">
+      <div class="kpi-content">
+        <div class="kpi-value" id="kpi-fixed">—</div>
+        <div class="kpi-label">Fixed</div>
+      </div>
+      <div class="kpi-spark" style="--accent:#22C55E"></div>
+    </div>
+    <div class="kpi-card kpi-mttr" id="kpi-card-mttr">
+      <div class="kpi-content">
+        <div class="kpi-value" id="kpi-mttr">—</div>
+        <div class="kpi-label">Avg MTTR (days)</div>
+      </div>
+      <div class="kpi-spark" style="--accent:#3B82F6"></div>
+    </div>
+  </div>
+
+  <!-- ===== Loading ===== -->
+  <div class="loading-overlay" id="loading-overlay">
+    <div class="loading-spinner"></div>
+    <p class="loading-text">Loading vulnerability data…</p>
+    <p class="loading-hint" id="loading-hint"></p>
+  </div>
+
+  <!-- ===== Upload fallback ===== -->
+  <div class="upload-fallback hidden" id="upload-fallback">
+    <div class="upload-card">
+      <div class="upload-icon">📂</div>
+      <h2>Load CSV Data</h2>
+      <p>The dashboard couldn't fetch <code>snyk_vulnerability_dataset.csv</code> automatically.<br>
+         This usually happens when opening the file directly in a browser.</p>
+      <p class="upload-tip"><strong>Recommended:</strong> Run a local server from the project directory:<br>
+         <code>python -m http.server 8000</code><br>
+         then open <code>http://localhost:8000</code></p>
+      <p class="upload-or">— or upload the CSV manually —</p>
+      <label class="btn-upload" for="csv-upload">Choose CSV file</label>
+      <input type="file" id="csv-upload" accept=".csv" style="display:none">
+    </div>
+  </div>
+
+  <!-- ===== Main Dashboard ===== -->
+  <main class="dashboard hidden" id="dashboard">
+
+    <!-- Section 1: Executive Summary -->
+    <section class="chart-section">
+      <div class="section-header">
+        <h2>1. Executive Summary — Risk Posture by Organization</h2>
+        <p class="section-desc">Open vulnerabilities heatmap across organizations and severity levels</p>
+      </div>
+      <div class="chart-grid chart-grid-7030">
+        <div class="chart-card">
+          <div class="chart-title">Open Vulnerabilities by Organization × Severity</div>
+          <div id="chart-heatmap" class="chart-container" style="height:300px"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Total Open Issues</div>
+          <div id="chart-org-totals" class="chart-container" style="height:300px"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 2: Severity Distribution -->
+    <section class="chart-section">
+      <div class="section-header">
+        <h2>2. Severity Distribution — All Issues</h2>
+      </div>
+      <div class="chart-grid chart-grid-5050">
+        <div class="chart-card">
+          <div class="chart-title">All Issues by Organization &amp; Severity</div>
+          <div id="chart-severity-bar" class="chart-container" style="height:320px"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Overall Severity Breakdown</div>
+          <div id="chart-severity-pie" class="chart-container" style="height:320px"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 3: Trends -->
+    <section class="chart-section">
+      <div class="section-header">
+        <h2>3. Vulnerability Discovery Trends Over Time</h2>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Monthly Vulnerability Discovery Trend</div>
+        <div id="chart-trend" class="chart-container" style="height:380px"></div>
+      </div>
+    </section>
+
+    <!-- Section 4: Scan Types -->
+    <section class="chart-section">
+      <div class="section-header">
+        <h2>4. Scan Type Breakdown — SCA vs SAST vs IaC</h2>
+      </div>
+      <div class="chart-grid chart-grid-5050">
+        <div class="chart-card">
+          <div class="chart-title">Issues by Scan Type per Organization</div>
+          <div id="chart-scan-type" class="chart-container" style="height:300px"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Severity Mix by Scan Type (%)</div>
+          <div id="chart-scan-severity" class="chart-container" style="height:300px"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 5: Tech Stack -->
+    <section class="chart-section">
+      <div class="section-header">
+        <h2>5. Technology Stack Risk Profile</h2>
+      </div>
+      <div class="chart-grid chart-grid-5050">
+        <div class="chart-card">
+          <div class="chart-title">Vulnerabilities by Language / Ecosystem</div>
+          <div id="chart-language" class="chart-container" style="height:360px"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">CVSS Score Distribution by Language</div>
+          <div id="chart-cvss-box" class="chart-container" style="height:360px"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 6: MTTR -->
+    <section class="chart-section">
+      <div class="section-header">
+        <h2>6. Mean Time to Remediate (MTTR) — SLA Analysis</h2>
+      </div>
+      <div class="chart-grid chart-grid-5050">
+        <div class="chart-card">
+          <div class="chart-title">Mean Time to Remediate (Days) by Organization</div>
+          <div id="chart-mttr-bar" class="chart-container" style="height:320px"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Remediation Time Distribution by Severity</div>
+          <div id="chart-mttr-violin" class="chart-container" style="height:320px"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 7: Fixability -->
+    <section class="chart-section">
+      <div class="section-header">
+        <h2>7. Fixability &amp; Exploit Maturity</h2>
+      </div>
+      <div class="chart-grid chart-grid-5050">
+        <div class="chart-card">
+          <div class="chart-title">Fix Availability by Organization</div>
+          <div id="chart-fixability" class="chart-container" style="height:300px"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Exploit Maturity by Severity</div>
+          <div id="chart-exploit" class="chart-container" style="height:300px"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 8: CWE Analysis -->
+    <section class="chart-section">
+      <div class="section-header">
+        <h2>8. Top Vulnerability Types (CWE Analysis)</h2>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Top 10 Vulnerability Types (CWE)</div>
+        <div id="chart-cwe" class="chart-container" style="height:420px"></div>
+      </div>
+    </section>
+
+    <!-- Section 9: Project Risk Matrix -->
+    <section class="chart-section">
+      <div class="section-header">
+        <h2>9. Project Risk Matrix — Prioritization</h2>
+        <p class="section-desc">Bubble size = critical issue count · Color = high issue count</p>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Open Issues vs Average CVSS Score per Project</div>
+        <div id="chart-scatter" class="chart-container" style="height:500px"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <p>Snyk Vulnerability Dashboard &nbsp;·&nbsp; Synthetic dataset &nbsp;·&nbsp; Built with Plotly.js</p>
+  </footer>
+
+  <!-- External libs -->
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="dashboard.js"></script>
+</body>
+</html>
